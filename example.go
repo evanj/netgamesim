@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"errors"
+	// "fmt"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -13,7 +14,17 @@ const (
 	up            = 38
 	right         = 39
 	down          = 40
+
+	space = 32
 )
+
+func KeyCodeFromInt(v int) (error, KeyCode) {
+	if (int(left) <= v && v <= int(down)) || v == space {
+		return nil, KeyCode(v)
+	}
+	// return fmt.Errorf("unsupported key code: %d", v), KeyCode(0)
+	return errors.New("unsupported key code"), KeyCode(0)
+}
 
 type Player struct {
 	directionX int
@@ -27,7 +38,12 @@ func (p *Player) Direction(x int, y int) {
 }
 
 type World struct {
-	player *Player
+	player  *Player
+	bullets []point
+}
+
+func (w *World) addBullet(x int, y int) {
+	w.bullets = append(w.bullets, point{x, y})
 }
 
 func (w *World) simulate(milliseconds float64) {
@@ -43,6 +59,10 @@ func (w *World) simulate(milliseconds float64) {
 
 func (w *World) Draw(canvas *Canvas) {
 	w.player.tank.Draw(canvas)
+
+	for _, p := range w.bullets {
+		canvas.line(p.x, p.y, p.x, p.y+4)
+	}
 }
 
 func (w *World) KeyDown(keycode KeyCode) {
@@ -55,10 +75,12 @@ func (w *World) KeyDown(keycode KeyCode) {
 		w.player.directionY = -1
 	case down:
 		w.player.directionY = 1
+	case space:
+		w.addBullet(w.player.tank.x, w.player.tank.y+tankSize)
 	default:
 		panic("unsupported keycode")
 	}
-	fmt.Println("keydown", w.player.directionX, w.player.directionY)
+	// fmt.Println("keydown", w.player.directionX, w.player.directionY)
 }
 
 func (w *World) KeyUp(keycode KeyCode) {
@@ -67,10 +89,17 @@ func (w *World) KeyUp(keycode KeyCode) {
 		w.player.directionX = 0
 	case up, down:
 		w.player.directionY = 0
+	case space:
+		// do nothing
 	default:
 		panic("unsupported keycode")
 	}
-	fmt.Println("keyup", w.player.directionX, w.player.directionY)
+	// fmt.Println("keyup", w.player.directionX, w.player.directionY)
+}
+
+type point struct {
+	x int
+	y int
 }
 
 type Tank struct {
@@ -87,11 +116,7 @@ func (t *Tank) Draw(canvas *Canvas) {
 }
 
 func getEventKey(event *js.Object) (error, KeyCode) {
-	v := event.Get("keyCode").Int()
-	if int(left) <= v && v <= int(down) {
-		return nil, KeyCode(v)
-	}
-	return fmt.Errorf("unsupported key code: %d", v), KeyCode(0)
+	return KeyCodeFromInt(event.Get("keyCode").Int())
 }
 
 type Canvas struct {
@@ -119,6 +144,10 @@ func (c *Canvas) clear() {
 
 func (c *Canvas) strokeRect(x int, y int, width int, height int) {
 	c.jsContext.Call("strokeRect", c.pixPos(x), c.pixPos(y), c.pixLen(width), c.pixLen(height))
+}
+
+func (c *Canvas) fillRect(x int, y int, width int, height int) {
+	c.jsContext.Call("fillRect", c.pixPos(x), c.pixPos(y), c.pixLen(width), c.pixLen(height))
 }
 
 func (c *Canvas) line(x1 int, y1 int, x2 int, y2 int) {
