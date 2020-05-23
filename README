@@ -1,5 +1,0 @@
-A dumb "game" using GopherJS
-
-Compile:
-. setenv.sh
-gopherjs build example.go
