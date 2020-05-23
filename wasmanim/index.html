@@ -8,7 +8,6 @@
 <script>
 const go = new Go();
 WebAssembly.instantiateStreaming(fetch("wasmanim.wasm"), go.importObject).then((result) => {
-  console.log('result?', result);
   go.run(result.instance);
 });
 </script>
@@ -18,5 +17,14 @@ WebAssembly.instantiateStreaming(fetch("wasmanim.wasm"), go.importObject).then((
 <p>Move the tank with arrow keys. Use space to shoot.</p>
 
 <canvas id="canvas" width="500" height="500" style="border: solid thin black;"></canvas>
+<button id="step">Step!</button>
+
+<script>
+function doStep() {
+  console.log("doStep");
+  window.goStepCallback();
+}
+document.getElementById("step").addEventListener("click", doStep);
+</script>
 </body>
 </html>
