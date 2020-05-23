@@ -17,13 +17,13 @@ const canvasID = "canvas"
 // see https://gafferongames.com/post/fix_your_timestep/
 const simulationTimeStepMS = 16
 
-const tankMovePerSecond = 400.0
+const tankMovePerSecond = 300.0
 const tankMovePerTimeStep = tankMovePerSecond / 1000.0 * simulationTimeStepMS
 
-const targetMovePerSecond = 600.0
+const targetMovePerSecond = 400.0
 const targetMovePerTimeStep = targetMovePerSecond / 1000.0 * simulationTimeStepMS
 
-const bulletMovePerSecond = 800.0
+const bulletMovePerSecond = 900.0
 const bulletMovePerTimeStep = bulletMovePerSecond / 1000.0 * simulationTimeStepMS
 
 const tankInitialX = 75

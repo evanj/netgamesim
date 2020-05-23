@@ -11,10 +11,10 @@ import (
 	"github.com/llgcode/draw2d/draw2dkit"
 )
 
-var lightGrey = color.RGBA{0xdd, 0xdd, 0xdd, 0xff}
 var tankGreen = color.RGBA{0x0c, 0xd4, 0x63, 0xff}
 var targetDarkRed = color.RGBA{0x9a, 0x1f, 0x40, 0xff}
 var targetLightRed = color.RGBA{0xd9, 0x45, 0x5f, 0xff}
+var smokeGrey = color.RGBA{0xaa, 0xaa, 0xaa, 0xaa}
 
 const tankSize = 20
 const tankLineWidth = 2.0
@@ -25,6 +25,7 @@ const targetSize = 15
 const targetInnerSize = targetSize/2.0
 
 const bulletSize = 4
+const smokeSize = 25
 
 const pixelStrokeOffset = 0.5
 
@@ -39,6 +40,7 @@ type Sprites struct {
 	Tank Sprite
 	Target Sprite
 	Bullet Sprite
+	Smoke Sprite
 }
 
 func New() Sprites {
@@ -46,6 +48,7 @@ func New() Sprites {
 		Sprite{tankSize, drawTank},
 		Sprite{targetSize, drawTarget},
 		Sprite{bulletSize, drawBullet},
+		Sprite{smokeSize, drawSmoke},
 	}
 }
 
@@ -91,6 +94,12 @@ func drawTarget(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 func drawBullet(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 	gc.SetFillColor(color.Black)
 	draw2dkit.Circle(gc, centerX, centerY, bulletSize)
+	gc.Fill()
+}
+
+func drawSmoke(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+	gc.SetFillColor(smokeGrey)
+	draw2dkit.Circle(gc, centerX, centerY, smokeSize)
 	gc.Fill()
 }
 
