@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/evanj/netgamesim/sprites"
+	"github.com/llgcode/draw2d/draw2dimg"
 )
 
 func writePNG(path string, img image.Image) error {
@@ -21,20 +22,23 @@ func writePNG(path string, img image.Image) error {
 func main() {
 	s := sprites.New()
 
-	err := writePNG("tank.png", s.Tank)
+	img := image.NewRGBA(image.Rect(0, 0, int(s.Tank.Size*2), int(s.Tank.Size*2)))
+	gc := draw2dimg.NewGraphicContext(img)
+	s.Tank.Draw(gc, s.Tank.Size, s.Tank.Size)
+	err := writePNG("tank.png", img)
 	if err != nil {
 		panic(err)
 	}
-	err = writePNG("angles.png", s.Angles)
-	if err != nil {
-		panic(err)
-	}
-	err = writePNG("angles2.png", s.Angles2)
-	if err != nil {
-		panic(err)
-	}
-	err = writePNG("lines.png", s.Lines)
-	if err != nil {
-		panic(err)
-	}
+	// err = writePNG("angles.png", s.Angles)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = writePNG("angles2.png", s.Angles2)
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// err = writePNG("lines.png", s.Lines)
+	// if err != nil {
+	// 	panic(err)
+	// }
 }

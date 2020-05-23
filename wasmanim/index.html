@@ -16,15 +16,6 @@ WebAssembly.instantiateStreaming(fetch("wasmanim.wasm"), go.importObject).then((
 <body><h1>Network Game Demo</h1>
 <p>Move the tank with arrow keys. Use space to shoot.</p>
 
-<canvas id="canvas" width="500" height="500" style="border: solid thin black;"></canvas>
-<button id="step">Step!</button>
-
-<script>
-function doStep() {
-  console.log("doStep");
-  window.goStepCallback();
-}
-document.getElementById("step").addEventListener("click", doStep);
-</script>
+<p><canvas id="canvas" width="500" height="500" style="border: solid thin black;"></canvas></p>
 </body>
 </html>

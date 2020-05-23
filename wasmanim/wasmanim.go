@@ -3,16 +3,252 @@ package main
 import (
 	"fmt"
 	"image"
-	"image/color"
 	"log"
-	"math"
 	"syscall/js"
 
-	"github.com/llgcode/draw2d"
+	"github.com/evanj/netgamesim/sprites"
 	"github.com/llgcode/draw2d/draw2dimg"
 )
 
 const canvasID = "canvas"
+
+// we simulate at a fixed timestep 16 ms = 62.5 FPS which is really close to the 60 FPS
+// usual target for web games
+// see https://gafferongames.com/post/fix_your_timestep/
+const simulationTimeStepMS = 16
+
+const tankMovePerSecond = 400.0
+const tankMovePerTimeStep = tankMovePerSecond / 1000.0 * simulationTimeStepMS
+
+const targetMovePerSecond = 600.0
+const targetMovePerTimeStep = targetMovePerSecond / 1000.0 * simulationTimeStepMS
+
+const bulletMovePerSecond = 800.0
+const bulletMovePerTimeStep = bulletMovePerSecond / 1000.0 * simulationTimeStepMS
+
+const tankInitialX = 75
+const tankInitialY = 75
+
+const targetX = 400
+const targetMaxY = 450
+const targetMinY = 50
+
+const keyCodeSpace = 32
+const keyCodeLeft = 37
+const keyCodeUp = 38
+const keyCodeRight = 39
+const keyCodeDown = 40
+
+const logFPSSeconds = 15
+
+const maxEdgeX = 500
+
+type direction int
+
+const (
+	dirNone = direction(iota)
+	dirLeft
+	dirUp
+	dirRight
+	dirDown
+)
+
+type point struct {
+	x float64
+	y float64
+}
+
+type game struct {
+	sprites         sprites.Sprites
+	keyDownCallback js.Func
+	keyUpCallback   js.Func
+	requestFrame    js.Func
+	screen          *canvasScreen
+	simTime         float64
+	lastFPSLogTime  float64
+	frames          int
+
+	tank        point
+	dir         direction
+	target      point
+	targetDir   direction
+	bullets     []point
+	firePressed bool
+}
+
+func newGame(screen *canvasScreen) *game {
+	g := &game{sprites.New(), js.Func{}, js.Func{}, js.Func{}, screen, 0.0, 0.0, 0,
+		point{tankInitialX, tankInitialY}, dirNone,
+		point{targetX, targetMinY}, dirDown,
+		nil, false}
+	g.keyDownCallback = js.FuncOf(g.jsKeyDown)
+	g.keyUpCallback = js.FuncOf(g.jsKeyUp)
+	g.requestFrame = js.FuncOf(g.jsRequestFrame)
+	return g
+}
+
+func (g *game) Stop() {
+	g.keyDownCallback.Release()
+	g.keyUpCallback.Release()
+	g.requestFrame.Release()
+}
+
+func dirFromKeyCode(keyCode int) direction {
+	switch keyCode {
+	case keyCodeLeft:
+		return dirLeft
+	case keyCodeUp:
+		return dirUp
+	case keyCodeRight:
+		return dirRight
+	case keyCodeDown:
+		return dirDown
+	default:
+		return dirNone
+	}
+}
+
+func (g *game) jsKeyDown(this js.Value, args []js.Value) interface{} {
+	event := args[0]
+	keyCode := event.Get("keyCode").Int()
+	if keyCode == keyCodeSpace {
+		if g.firePressed {
+			// ignore duplicate
+			return nil
+		}
+		g.firePressed = true
+		g.bullets = append(g.bullets, point{g.tank.x, g.tank.y})
+	}
+
+	dir := dirFromKeyCode(keyCode)
+
+	if dir == dirNone {
+		return nil
+	}
+	g.dir = dir
+
+	// TODO: check for repeat?
+	// repeat := event.Get("repeat").Bool()
+
+	// prevent arrow keys from doing what they normally would
+	event.Call("preventDefault")
+	return nil
+}
+
+func (g *game) jsKeyUp(this js.Value, args []js.Value) interface{} {
+	event := args[0]
+	keyCode := event.Get("keyCode").Int()
+
+	if keyCode == keyCodeSpace {
+		g.firePressed = false
+		return nil
+	}
+
+	dir := dirFromKeyCode(keyCode)
+	if dir == dirNone {
+		return nil
+	}
+	if dir == g.dir {
+		g.dir = dirNone
+	}
+	return nil
+}
+
+func (g *game) simulateTimeStep() {
+	offsetX := 0.0
+	offsetY := 0.0
+
+	switch g.dir {
+	case dirLeft:
+		offsetX = -tankMovePerTimeStep
+	case dirRight:
+		offsetX = tankMovePerTimeStep
+
+	case dirDown:
+		offsetY = tankMovePerTimeStep
+	case dirUp:
+		offsetY = -tankMovePerTimeStep
+
+	case dirNone:
+		// do nothing
+
+	default:
+		panic("unhandled direction")
+	}
+
+	g.tank.x += offsetX
+	g.tank.y += offsetY
+
+	switch g.targetDir {
+	case dirDown:
+		g.target.y += targetMovePerTimeStep
+		if g.target.y > targetMaxY {
+			g.target.y = targetMaxY
+			g.targetDir = dirUp
+		}
+	case dirUp:
+		g.target.y -= targetMovePerTimeStep
+		if g.target.y < targetMinY {
+			g.target.y = targetMinY
+			g.targetDir = dirDown
+		}
+	default:
+		panic("bad target direction")
+	}
+
+	for i := 0; i < len(g.bullets); i++ {
+		g.bullets[i].x += bulletMovePerTimeStep
+		if g.bullets[i].x >= maxEdgeX {
+			last := len(g.bullets) - 1
+			g.bullets[last], g.bullets[i] = g.bullets[i], g.bullets[last]
+			g.bullets = g.bullets[:last]
+			i--
+		}
+	}
+}
+
+func (g *game) jsRequestFrame(this js.Value, args []js.Value) interface{} {
+	msSinceDocStart := args[0].Float()
+	if g.simTime == 0.0 {
+		g.simTime = msSinceDocStart
+		g.lastFPSLogTime = msSinceDocStart
+	}
+
+	// advance physics simulation until we are "caught up"
+	// see https://gafferongames.com/post/fix_your_timestep/
+	frames := 0
+	for {
+		nextTime := g.simTime + simulationTimeStepMS
+		if nextTime >= msSinceDocStart {
+			break
+		}
+		g.simTime = nextTime
+
+		g.simulateTimeStep()
+		frames += 1
+	}
+
+	// draw the state of the universe
+	g.sprites.Tank.Draw(g.screen.gc, g.tank.x, g.tank.y)
+	g.sprites.Target.Draw(g.screen.gc, g.target.x, g.target.y)
+	for _, b := range g.bullets {
+		g.sprites.Bullet.Draw(g.screen.gc, b.x, b.y)
+	}
+	g.screen.renderFrame()
+
+	// request the next frame
+	js.Global().Call("requestAnimationFrame", g.requestFrame)
+
+	g.frames += 1
+	if msSinceDocStart-g.lastFPSLogTime >= logFPSSeconds*1000 {
+		seconds := (msSinceDocStart - g.lastFPSLogTime) / 1000.0
+		fps := float64(g.frames) / seconds
+		log.Printf("t=%f frames=%d seconds=%f fps=%f", msSinceDocStart, g.frames, seconds, fps)
+		g.frames = 0
+		g.lastFPSLogTime = msSinceDocStart
+	}
+	return nil
+}
 
 func main() {
 	log.Printf("demo loading in canvas id=%s ...", canvasID)
@@ -21,147 +257,40 @@ func main() {
 	document := js.Global().Get("document")
 	canvasElement := document.Call("getElementById", canvasID)
 	screen := newScreen(canvasElement)
+	log.Printf("canvas dimensions device ratio:%f width:%d x height:%d",
+		screen.devicePixelRatio, screen.devicePixelWidth, screen.devicePixelHeight)
 
-	log.Printf("canvas dimensions width:%d x height:%d", screen.width, screen.height)
+	g := newGame(screen)
+	defer g.Stop()
 
-	// spriteImgs := sprites.New()
-	// draw.Draw(screen.frame, image.Rect(200, 200, 200+12, 200+12),
-	// 	&spriteImgs.Tank, image.Point{0, 0}, draw.Over)
+	document.Call("addEventListener", "keydown", g.keyDownCallback)
+	document.Call("addEventListener", "keyup", g.keyUpCallback)
 
-	a := &animation{0, screen, js.Func{}}
-	a.drawFrameJSFunc = js.FuncOf(a.drawFrame)
-	// a.drawFrame(0, centerX, centerY)
-	// a.drawFrame(0, centerX+2*size+0.5, centerY+0.5)
-	// a.d1px(a.step, centerX+2*size, centerY+2*size)
-
-	// Render the frame
-	// screen.renderFrame()
-
-	js.Global().Set("goStepCallback", js.FuncOf(a.stepCallback))
-
-	//
-
-	// // TODO: call drawFrameJSFunc.Release()
-	js.Global().Call("requestAnimationFrame", a.drawFrameJSFunc)
+	js.Global().Call("requestAnimationFrame", g.requestFrame)
 
 	done := make(chan struct{})
 	<-done
 }
 
-func (a *animation) drawFrame(this js.Value, args []js.Value) interface{} {
-	// called with DOMHighResTimeStamp indicating seconds since document start; ignored
-	// log.Printf("requestAnimationFrame args[0]=%v", args[0])
-	msSinceStart := args[0].Float()
-	secondsSinceStart := msSinceStart / 1000.
-
-	rotations := secondsSinceStart * rotationsPerSecond
-	fractional := rotations - math.Floor(rotations)
-	a.drawStroke(fractional, centerX, centerY)
-	a.drawStroke(fractional, centerX+2*size+0.5, centerY+0.5)
-	a.d1px(fractional, centerX+2*size, centerY+2*size)
-
-	a.screen.renderFrame()
-	js.Global().Call("requestAnimationFrame", a.drawFrameJSFunc)
-	log.Printf("wtf %f frac %f", msSinceStart, fractional)
-
-	return nil
-}
-
-func (a *animation) stepCallback(this js.Value, args []js.Value) interface{} {
-	// called with DOMHighResTimeStamp indicating seconds since document start; ignored
-	// a.step += 1
-	// a.drawFrame(a.step, centerX, centerY)
-	// a.drawFrame(a.step, centerX+2*size+0.5, centerY+0.5)
-	// a.d1px(a.step, centerX+2*size, centerY+2*size)
-
-	// a.screen.renderFrame()
-	return nil
-}
-
-type animation struct {
-	// start time.Time
-	step            int
-	screen          *canvasScreen
-	drawFrameJSFunc js.Func
-}
-
-const centerX = 100.0
-const centerY = 100.0
-const size = 50.0
-const rotationsPerSecond = 0.5
-
-func (a *animation) drawStroke(fraction float64, centerX float64, centerY float64) {
-	a.screen.gc.SetStrokeColor(color.Black)
-	a.screen.gc.SetLineWidth(1.0)
-	a.screen.gc.BeginPath()
-	a.screen.gc.MoveTo(centerX, centerY)
-
-	// compute the end point
-	rads := 2 * math.Pi * fraction
-	yOffset := math.Sin(rads) * size
-	xOffset := math.Cos(rads) * size
-	// log.Printf("step=%d x=%f y=%f", xOffset, yOffset)
-	a.screen.gc.LineTo(centerX+xOffset, centerY+yOffset)
-	a.screen.gc.Stroke()
-
-	// log.Printf("fraction=%d rads=%f; draw line %f,%f -> %f,%f",
-	// 	step, rads, float64(centerX), float64(centerY), centerX+xOffset, centerY+yOffset)
-}
-
-func (a *animation) d1px(fraction float64, centerX int, centerY int) {
-	// compute the end point
-	rads := 2 * math.Pi * fraction
-	yOffset := math.Sin(rads) * size
-	xOffset := math.Cos(rads) * size
-
-	x := centerX + int(xOffset+0.5)
-	y := centerY + int(yOffset+0.5)
-	draw1PxLine(a.screen.gc, image.Point{int(centerX), int(centerY)}, image.Point{x, y}, color.Black)
-}
-
-func iabs(i int) int {
-	if i < 0 {
-		return -i
-	}
-	return i
-}
-
-// draw1Px draws a single pixel think linkthe rectangle described by image.Rectangle with the given color
-func draw1PxLine(gc draw2d.GraphicContext, p1 image.Point, p2 image.Point, c color.Color) {
-	// determine the "primary" direction as the largest magnitude
-	xDiff := p2.X - p1.X
-	yDiff := p2.Y - p1.Y
-
-	xStartOffset := 0.5
-	xEndOffset := 0.5
-	yStartOffset := 0.5
-	yEndOffset := 0.5
-	if iabs(xDiff) > iabs(yDiff) {
-		xStartOffset = 0
-		xEndOffset = 1
-		if xDiff < 0 {
-			xStartOffset = 1
-			xEndOffset = 0
-		}
-	} else if iabs(xDiff) < iabs(yDiff) {
-		yStartOffset = 0
-		yEndOffset = 1
-		if yDiff < 0 {
-			yStartOffset = 1
-			yEndOffset = 0
-		}
-	}
-
-	gc.SetStrokeColor(c)
-	gc.BeginPath()
-	gc.MoveTo(float64(p1.X)+xStartOffset, float64(p1.Y)+yStartOffset)
-	gc.LineTo(float64(p2.X)+xEndOffset, float64(p2.Y)+yEndOffset)
-	gc.Stroke()
-}
-
 func newScreen(canvasElement js.Value) *canvasScreen {
+	// make the canvas use REAL pixels so we can draw the real pixels without scaling
+	// https://stackoverflow.com/a/59511599
+	devicePixelRatio := js.Global().Get("devicePixelRatio").Float()
 	width := int(canvasElement.Get("width").Float())
 	height := int(canvasElement.Get("height").Float())
+	if devicePixelRatio != 1.0 {
+		log.Printf("devicePixelRatio=%f", devicePixelRatio)
+
+		canvasStyle := canvasElement.Get("style")
+		canvasStyle.Set("width", fmt.Sprintf("%dpx", width))
+		canvasStyle.Set("height", fmt.Sprintf("%dpx", height))
+
+		// now make the canvas bigger
+		width = int(float64(width) * devicePixelRatio)
+		height = int(float64(height) * devicePixelRatio)
+		canvasElement.Set("width", width)
+		canvasElement.Set("height", height)
+	}
 
 	// Create a Go image to draw into
 	frame := image.NewRGBA(image.Rect(0, 0, width, height))
@@ -173,14 +302,15 @@ func newScreen(canvasElement js.Value) *canvasScreen {
 	imageDataData := imageData.Get("data")
 	jsUInt8Array := js.Global().Get("Uint8Array").New(len(frame.Pix))
 
-	return &canvasScreen{width, height, ctx, imageData, imageDataData, jsUInt8Array, frame, gc}
+	return &canvasScreen{devicePixelRatio, width, height, ctx, imageData, imageDataData, jsUInt8Array, frame, gc}
 	// c.image = image.NewRGBA(image.Rect(0, 0, width, height))
 	// c.copybuff = js.Global().Get("Uint8Array").New(len(c.image.Pix)) // Static JS buffer for copying data out to JS. Defined once and re-used to save on un-needed allocations
 }
 
 type canvasScreen struct {
-	width  int
-	height int
+	devicePixelRatio  float64
+	devicePixelWidth  int
+	devicePixelHeight int
 
 	jsCtx         js.Value
 	imageData     js.Value

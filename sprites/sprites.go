@@ -8,48 +8,90 @@ import (
 
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
+	"github.com/llgcode/draw2d/draw2dkit"
 )
 
 var lightGrey = color.RGBA{0xdd, 0xdd, 0xdd, 0xff}
 var tankGreen = color.RGBA{0x0c, 0xd4, 0x63, 0xff}
+var targetDarkRed = color.RGBA{0x9a, 0x1f, 0x40, 0xff}
+var targetLightRed = color.RGBA{0xd9, 0x45, 0x5f, 0xff}
 
-const tankSize = 10
-const TankCenterX = tankSize / 2
-const TankCenterY = tankSize / 2
+const tankSize = 20
+const tankLineWidth = 2.0
+// const TankCenterX = tankSize / 2
+// const TankCenterY = tankSize / 2
+
+const targetSize = 15
+const targetInnerSize = targetSize/2.0
+
+const bulletSize = 4
 
 const pixelStrokeOffset = 0.5
 
+// Sprites are assumed to be squares Size x Size in dimension. It is actually
+// okay to draw the sprite past the Size boundary.
 type Sprite struct {
-	img image.Image
+	Size float64
+	Draw func(gc draw2d.GraphicContext, centerX float64, centerY float64)
 }
 
 type Sprites struct {
-	Tank    *image.RGBA
-	Angles  *image.RGBA
-	Angles2 *image.RGBA
-	Lines   *image.RGBA
+	Tank Sprite
+	Target Sprite
+	Bullet Sprite
 }
 
 func New() Sprites {
 	return Sprites{
-		tank(),
-		angles(),
-		angles2(),
-		lineBasic(),
+		Sprite{tankSize, drawTank},
+		Sprite{targetSize, drawTarget},
+		Sprite{bulletSize, drawBullet},
 	}
 }
 
-func tank() *image.RGBA {
-	img := image.NewRGBA(image.Rect(0, 0, tankSize*2, tankSize*2))
-	gc := draw2dimg.NewGraphicContext(img)
+func drawTank(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+	gc.SetStrokeColor(color.Black)
+	gc.SetFillColor(tankGreen)
+	gc.SetLineWidth(tankLineWidth)
+	// this should make the corners of the tank square but it has a bug:
+	// https://github.com/llgcode/draw2d/issues/155
+	// sadly this means we need to draw some insane lines with rectangles
+	gc.SetLineJoin(draw2d.MiterJoin)
 
-	tankBounds := image.Rect(0, 0, tankSize, tankSize)
-	fillPixels(gc, tankBounds, tankGreen)
-	draw1PxRect(gc, tankBounds, color.Black)
-	draw1PxLine(gc, image.Point{TankCenterX, TankCenterY}, image.Point{TankCenterX, TankCenterY + tankSize}, color.Black)
-	draw1PxLine(gc, image.Point{11, 11}, image.Point{14, 14}, color.Black)
+	// TODO: should this be for all odd line widths? E.g. 3.0, 5.0? what about 3.5 or 0.5?
+	if tankLineWidth <= 1.0 {
+		centerX += pixelStrokeOffset
+		centerY += pixelStrokeOffset
+	}
 
-	return img
+	// tank "body"
+	gc.MoveTo(centerX-tankSize/2, centerY-tankSize/2)
+	gc.LineTo(centerX+tankSize/2, centerY-tankSize/2)
+	gc.LineTo(centerX+tankSize/2, centerY+tankSize/2)
+	gc.LineTo(centerX-tankSize/2, centerY+tankSize/2)
+	gc.Close()
+
+	// tank "gun"
+	gc.MoveTo(centerX, centerY)
+	gc.LineTo(centerX+tankSize, centerY)
+	gc.FillStroke()
+
+	gc.BeginPath()
+}
+
+func drawTarget(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+	gc.SetFillColor(targetDarkRed)
+	draw2dkit.Circle(gc, centerX, centerY, targetSize)
+	gc.Fill()
+	gc.SetFillColor(targetLightRed)
+	draw2dkit.Circle(gc, centerX, centerY, targetInnerSize)
+	gc.Fill()
+}
+
+func drawBullet(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+	gc.SetFillColor(color.Black)
+	draw2dkit.Circle(gc, centerX, centerY, bulletSize)
+	gc.Fill()
 }
 
 // fillPixels fills the rectangle described by image.Rectangle with the given color

@@ -5,7 +5,8 @@ This is a simulation of a very terrible game to experiment with network game pro
 
 ## Go WASM Resources
 
-https://github.com/golang/go/wiki/WebAssembly
+* https://github.com/golang/go/wiki/WebAssembly
+* https://github.com/markfarnan/go-canvas
 
 
 ## Network Programming Resources
