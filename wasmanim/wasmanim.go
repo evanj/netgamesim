@@ -6,6 +6,7 @@ import (
 	"log"
 	"syscall/js"
 
+	"github.com/evanj/netgamesim/intersect"
 	"github.com/evanj/netgamesim/sprites"
 	"github.com/llgcode/draw2d/draw2dimg"
 )
@@ -25,6 +26,9 @@ const targetMovePerTimeStep = targetMovePerSecond / 1000.0 * simulationTimeStepM
 
 const bulletMovePerSecond = 900.0
 const bulletMovePerTimeStep = bulletMovePerSecond / 1000.0 * simulationTimeStepMS
+
+const smokeDisplaySeconds = 1
+const smokeDisplayTimeSteps = (smokeDisplaySeconds * 1000) / simulationTimeStepMS
 
 const tankInitialX = 75
 const tankInitialY = 75
@@ -53,9 +57,9 @@ const (
 	dirDown
 )
 
-type point struct {
-	x float64
-	y float64
+type smokeCounter struct {
+	position      intersect.Point
+	timeStepCount int
 }
 
 type game struct {
@@ -68,19 +72,21 @@ type game struct {
 	lastFPSLogTime  float64
 	frames          int
 
-	tank        point
-	dir         direction
-	target      point
-	targetDir   direction
-	bullets     []point
+	tank      intersect.Point
+	dir       direction
+	target    intersect.Point
+	targetDir direction
+	bullets   []intersect.Point
+	smoke     []smokeCounter
+
 	firePressed bool
 }
 
 func newGame(screen *canvasScreen) *game {
 	g := &game{sprites.New(), js.Func{}, js.Func{}, js.Func{}, screen, 0.0, 0.0, 0,
-		point{tankInitialX, tankInitialY}, dirNone,
-		point{targetX, targetMinY}, dirDown,
-		nil, false}
+		intersect.Point{X: tankInitialX, Y: tankInitialY}, dirNone,
+		intersect.Point{X: targetX, Y: targetMinY}, dirDown,
+		nil, nil, false}
 	g.keyDownCallback = js.FuncOf(g.jsKeyDown)
 	g.keyUpCallback = js.FuncOf(g.jsKeyUp)
 	g.requestFrame = js.FuncOf(g.jsRequestFrame)
@@ -110,6 +116,10 @@ func dirFromKeyCode(keyCode int) direction {
 
 func (g *game) jsKeyDown(this js.Value, args []js.Value) interface{} {
 	event := args[0]
+	// TODO: check for repeat?
+	// repeat := event.Get("repeat").Bool()
+	// probably not worth it if this involves a "call" back to the browser?
+
 	keyCode := event.Get("keyCode").Int()
 	if keyCode == keyCodeSpace {
 		if g.firePressed {
@@ -117,18 +127,15 @@ func (g *game) jsKeyDown(this js.Value, args []js.Value) interface{} {
 			return nil
 		}
 		g.firePressed = true
-		g.bullets = append(g.bullets, point{g.tank.x, g.tank.y})
+		g.bullets = append(g.bullets, g.tank)
+	} else {
+		dir := dirFromKeyCode(keyCode)
+
+		if dir == dirNone {
+			return nil
+		}
+		g.dir = dir
 	}
-
-	dir := dirFromKeyCode(keyCode)
-
-	if dir == dirNone {
-		return nil
-	}
-	g.dir = dir
-
-	// TODO: check for repeat?
-	// repeat := event.Get("repeat").Bool()
 
 	// prevent arrow keys from doing what they normally would
 	event.Call("preventDefault")
@@ -176,20 +183,20 @@ func (g *game) simulateTimeStep() {
 		panic("unhandled direction")
 	}
 
-	g.tank.x += offsetX
-	g.tank.y += offsetY
+	g.tank.X += offsetX
+	g.tank.Y += offsetY
 
 	switch g.targetDir {
 	case dirDown:
-		g.target.y += targetMovePerTimeStep
-		if g.target.y > targetMaxY {
-			g.target.y = targetMaxY
+		g.target.Y += targetMovePerTimeStep
+		if g.target.Y > targetMaxY {
+			g.target.Y = targetMaxY
 			g.targetDir = dirUp
 		}
 	case dirUp:
-		g.target.y -= targetMovePerTimeStep
-		if g.target.y < targetMinY {
-			g.target.y = targetMinY
+		g.target.Y -= targetMovePerTimeStep
+		if g.target.Y < targetMinY {
+			g.target.Y = targetMinY
 			g.targetDir = dirDown
 		}
 	default:
@@ -197,11 +204,41 @@ func (g *game) simulateTimeStep() {
 	}
 
 	for i := 0; i < len(g.bullets); i++ {
-		g.bullets[i].x += bulletMovePerTimeStep
-		if g.bullets[i].x >= maxEdgeX {
+		before := g.bullets[i]
+		g.bullets[i].X += bulletMovePerTimeStep
+
+		shouldRemove := false
+		if g.bullets[i].X >= maxEdgeX {
+			// bullet is off the screen: remove it
+			shouldRemove = true
+		}
+
+		if intersect.PathBox(before, g.bullets[i], g.target, g.sprites.Target.Size) {
+			// bullet hit the target! remove it and add smoke
+			shouldRemove = true
+			g.smoke = append(g.smoke, smokeCounter{g.bullets[i], 0})
+			log.Printf("hit! bullet = %s->%s ; target = %s",
+				before, g.bullets[i], g.target)
+
+			if !intersect.PointBox(g.bullets[i], g.target, g.sprites.Target.Size) {
+				log.Printf("!!!! would not hit with point")
+			}
+		}
+
+		if shouldRemove {
 			last := len(g.bullets) - 1
 			g.bullets[last], g.bullets[i] = g.bullets[i], g.bullets[last]
 			g.bullets = g.bullets[:last]
+			i--
+		}
+	}
+
+	for i := 0; i < len(g.smoke); i++ {
+		g.smoke[i].timeStepCount++
+		if g.smoke[i].timeStepCount >= smokeDisplayTimeSteps {
+			last := len(g.smoke) - 1
+			g.smoke[last], g.smoke[i] = g.smoke[i], g.smoke[last]
+			g.smoke = g.smoke[:last]
 			i--
 		}
 	}
@@ -225,21 +262,24 @@ func (g *game) jsRequestFrame(this js.Value, args []js.Value) interface{} {
 		g.simTime = nextTime
 
 		g.simulateTimeStep()
-		frames += 1
+		frames++
 	}
 
 	// draw the state of the universe
-	g.sprites.Tank.Draw(g.screen.gc, g.tank.x, g.tank.y)
-	g.sprites.Target.Draw(g.screen.gc, g.target.x, g.target.y)
+	g.sprites.Tank.Draw(g.screen.gc, g.tank.X, g.tank.Y)
+	g.sprites.Target.Draw(g.screen.gc, g.target.X, g.target.Y)
 	for _, b := range g.bullets {
-		g.sprites.Bullet.Draw(g.screen.gc, b.x, b.y)
+		g.sprites.Bullet.Draw(g.screen.gc, b.X, b.Y)
+	}
+	for _, s := range g.smoke {
+		g.sprites.Smoke.Draw(g.screen.gc, s.position.X, s.position.Y)
 	}
 	g.screen.renderFrame()
 
 	// request the next frame
 	js.Global().Call("requestAnimationFrame", g.requestFrame)
 
-	g.frames += 1
+	g.frames++
 	if msSinceDocStart-g.lastFPSLogTime >= logFPSSeconds*1000 {
 		seconds := (msSinceDocStart - g.lastFPSLogTime) / 1000.0
 		fps := float64(g.frames) / seconds

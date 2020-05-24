@@ -6,6 +6,14 @@ import (
 	"math"
 )
 
+const verbose = false
+
+func debugf(msg string, args ...interface{}) {
+	if verbose {
+		log.Printf(msg, args...)
+	}
+}
+
 // Point represents a single point.
 type Point struct {
 	X float64
@@ -57,10 +65,6 @@ func PathBox(p0 Point, p1 Point, center Point, diameter float64) bool {
 	tMin := t0
 	tMax := t1
 
-	log.Printf("%s->%s intersects y (%f,%f)x(%f,%f); t=[%f,%f]",
-		p0, p1, x0, y0, x1, x1,
-		tMin, tMax)
-
 	// intersection with left line x0
 	t0 = (x0 - p0.X) / xVec
 	// intersection with right line x1
@@ -87,7 +91,7 @@ func PathBox(p0 Point, p1 Point, center Point, diameter float64) bool {
 		return false
 	}
 
-	log.Printf("%s->%s intersects box (%f,%f)x(%f,%f); t=[%f,%f] point min = (%f,%f)",
+	debugf("%s->%s intersects box (%f,%f)x(%f,%f); t=[%f,%f] point min = (%f,%f)",
 		p0, p1, x0, y0, x1, x1,
 		tMin, tMax, p0.X+xVec*tMin, p0.Y+yVec*tMin)
 	return true
