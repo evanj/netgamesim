@@ -45,7 +45,8 @@ const keyCodeDown = 40
 
 const logFPSSeconds = 15
 
-const maxEdgeX = 500
+// the game world is 500x500
+const maxEdgeDimension = 500
 
 type direction int
 
@@ -207,7 +208,7 @@ func (g *game) simulateTimeStep() {
 		g.bullets[i].X += bulletMovePerTimeStep
 
 		shouldRemove := false
-		if g.bullets[i].X >= maxEdgeX {
+		if g.bullets[i].X >= maxEdgeDimension {
 			// bullet is off the screen: remove it
 			shouldRemove = true
 		}
@@ -331,6 +332,7 @@ func newScreen(canvasElement js.Value) *canvasScreen {
 	// Create a Go image to draw into
 	frame := image.NewRGBA(image.Rect(0, 0, width, height))
 	gc := draw2dimg.NewGraphicContext(frame)
+	gc.Scale(devicePixelRatio, devicePixelRatio)
 
 	// set up the Canvas so we can draw to it
 	ctx := canvasElement.Call("getContext", "2d")
