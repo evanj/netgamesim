@@ -18,13 +18,14 @@ var smokeGrey = color.RGBA{0xaa, 0xaa, 0xaa, 0xaa}
 
 const tankSize = 20
 const tankLineWidth = 2.0
+
 // const TankCenterX = tankSize / 2
 // const TankCenterY = tankSize / 2
 
-const targetSize = 15
-const targetInnerSize = targetSize/2.0
+const targetSize = 30
+const targetInnerSize = targetSize / 2.0
 
-const bulletSize = 4
+const bulletSize = 12
 const smokeSize = 25
 
 const pixelStrokeOffset = 0.5
@@ -32,15 +33,16 @@ const pixelStrokeOffset = 0.5
 // Sprites are assumed to be squares Size x Size in dimension. It is actually
 // okay to draw the sprite past the Size boundary.
 type Sprite struct {
+	// Size is the bounding box width/height that contains the sprite
 	Size float64
 	Draw func(gc draw2d.GraphicContext, centerX float64, centerY float64)
 }
 
 type Sprites struct {
-	Tank Sprite
+	Tank   Sprite
 	Target Sprite
 	Bullet Sprite
-	Smoke Sprite
+	Smoke  Sprite
 }
 
 func New() Sprites {
@@ -84,22 +86,30 @@ func drawTank(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 
 func drawTarget(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 	gc.SetFillColor(targetDarkRed)
-	draw2dkit.Circle(gc, centerX, centerY, targetSize)
+	draw2dkit.Circle(gc, centerX, centerY, targetSize/2)
 	gc.Fill()
 	gc.SetFillColor(targetLightRed)
-	draw2dkit.Circle(gc, centerX, centerY, targetInnerSize)
+	draw2dkit.Circle(gc, centerX, centerY, targetInnerSize/2)
 	gc.Fill()
 }
 
 func drawBullet(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 	gc.SetFillColor(color.Black)
-	draw2dkit.Circle(gc, centerX, centerY, bulletSize)
-	gc.Fill()
+
+	// the bullet is a line bulletSize wide and bulletSize/3 thick
+	gc.SetLineWidth(bulletSize / 3)
+	gc.BeginPath()
+	gc.MoveTo(centerX-bulletSize/2, centerY)
+	gc.LineTo(centerX+bulletSize/2, centerY)
+	gc.Stroke()
+	gc.BeginPath()
+	// draw2dkit.Circle(gc, centerX, centerY, bulletSize/2)
+	// gc.Fill()
 }
 
 func drawSmoke(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 	gc.SetFillColor(smokeGrey)
-	draw2dkit.Circle(gc, centerX, centerY, smokeSize)
+	draw2dkit.Circle(gc, centerX, centerY, smokeSize/2)
 	gc.Fill()
 }
 
