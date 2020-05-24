@@ -5,6 +5,8 @@
 <title>Device Pixel Test</title>
 
 <script>
+const tenPxImageId = "tenPx";
+
 function loaded() {
   const dprElement = document.getElementById("dpr");
   dprElement.innerText = window.devicePixelRatio;
@@ -40,7 +42,7 @@ function loaded() {
   scaled.height = scaledHeight;
   console.log(`scaled canvas (${cssWidth}, ${cssHeight}) -> (${scaledWidth}, ${scaledHeight}) dpr:${window.devicePixelRatio}`);
 
-  const tenPxImage = document.getElementById("tenPx")
+  const tenPxImage = document.getElementById(tenPxImageId);
 
   for (const canvasElement of canvases) {
     const ctx = canvasElement.getContext("2d");
@@ -113,7 +115,17 @@ function loaded() {
   }
 }
 
-document.addEventListener("DOMContentLoaded", loaded);
+document.addEventListener("DOMContentLoaded", (event) => {
+  // ensure the image is loaded before firing event;
+  // otherwise the image does not get drawn on the canvas
+  const tenPxImage = document.getElementById(tenPxImageId);
+  if (!tenPxImage.complete) {
+    console.log("image not loaded; adding load listener");
+    tenPxImage.addEventListener("load", loaded);
+  } else {
+    loaded();
+  }
+});
 </script>
 </head>
 
