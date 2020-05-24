@@ -1,5 +1,11 @@
+BUILD_OUTPUT_DIR:=build
+
 all:
-	GOOS=js GOARCH=wasm go build -o wasmanim.wasm ../wasmanim
-	cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" .
-	cp ../wasmanim/index.html ../wasmanim/devicepixelstest.html .
+	mkdir -p $(BUILD_OUTPUT_DIR)
+	GOOS=js GOARCH=wasm go build -o $(BUILD_OUTPUT_DIR)/wasmanim.wasm ../wasmanim
+	cp "$(shell go env GOROOT)/misc/wasm/wasm_exec.js" $(BUILD_OUTPUT_DIR)
+	cp ../wasmanim/*.html $(BUILD_OUTPUT_DIR)
 	docker build . "--tag=us.gcr.io/evan-jones-hrd/gamesim:$(shell date +%Y%m%d)-$(shell git rev-parse --short HEAD)"
+
+clean:
+	$(RM) -r $(BUILD_OUTPUT_DIR)
