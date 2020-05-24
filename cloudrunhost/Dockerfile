@@ -5,7 +5,7 @@ RUN go mod init github.com/evanj/netgamesim/cloudrunhost && go build --mod=reado
 
 FROM gcr.io/distroless/base-debian10:latest AS run
 COPY --from=builder /go/src/cloudrunhost/cloudrunhost /cloudrunhost
-COPY wasmanim.wasm index.html wasm_exec.js /data/
+COPY *.wasm *.html *.js /data/
 
 # Use a non-root user: slightly more secure (defense in depth)
 USER nobody

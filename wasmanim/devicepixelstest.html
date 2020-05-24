@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Device Pixel Test</title>
+
+<script>
+function loaded() {
+  const dprElement = document.getElementById("dpr");
+  dprElement.innerText = window.devicePixelRatio;
+
+  const scaledDiv = document.getElementById("scaled-border");
+  const computedWidth = 100.0 / window.devicePixelRatio; 
+  const computedHeight = 20.0 / window.devicePixelRatio; 
+  const computedBorder = 1.0 / window.devicePixelRatio;
+  document.getElementById("computed-dimensions").innerText = `${computedWidth}px x ${computedHeight}px; border = ${computedBorder}px`
+  scaledDiv.style.width = computedWidth + "px";
+  scaledDiv.style.height= computedHeight + "px";
+  scaledDiv.style.border = computedBorder + "px solid black";
+
+  const scaledImg = document.getElementById("tenPxScaled");
+  const scaledImgWidth = scaledImg.width / window.devicePixelRatio;
+  const scaledImgHeight = scaledImg.height / window.devicePixelRatio;
+  scaledImg.width = scaledImgWidth;
+  scaledImg.height = scaledImgHeight;
+  document.getElementById("scaled-img-dimensions").innerText = `${scaledImgWidth} x ${scaledImgHeight}`
+
+  const unscaled = document.getElementById("unscaled");
+  const scaled = document.getElementById("scaled");
+  const canvases = [unscaled, scaled];
+
+  // scale the scaled canvas
+  const cssWidth = scaled.width
+  const cssHeight = scaled.height
+  scaled.style.width = cssWidth + "px";
+  scaled.style.height = cssHeight + "px";
+  const scaledWidth = cssWidth * window.devicePixelRatio; 
+  const scaledHeight = cssHeight * window.devicePixelRatio; 
+  scaled.width = scaledWidth;
+  scaled.height = scaledHeight;
+  console.log(`scaled canvas (${cssWidth}, ${cssHeight}) -> (${scaledWidth}, ${scaledHeight}) dpr:${window.devicePixelRatio}`);
+
+  const tenPxImage = document.getElementById("tenPx")
+
+  for (const canvasElement of canvases) {
+    const ctx = canvasElement.getContext("2d");
+    const width = 100;
+    const xOffset = 10;
+    const yOffset = 30;
+    let y = yOffset;
+    ctx.font = '20px serif'
+    ctx.lineWidth = 1.0;
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y);
+    ctx.lineTo(xOffset + width, y);
+    ctx.stroke();
+    ctx.fillText('1px; on grid', 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y + 0.5);
+    ctx.lineTo(xOffset + width, y + 0.5);
+    ctx.stroke();
+    ctx.fillText('1px; +0.5 y', 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.lineWidth = 0.5
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y + 0.5);
+    ctx.lineTo(xOffset + width, y + 0.5);
+    ctx.stroke();
+    ctx.fillText('0.5px; +0.5 y', 2*xOffset + width, y);
+    y += yOffset;
+
+    const scaledWidth = 1.0/window.devicePixelRatio;
+    ctx.lineWidth = scaledWidth;
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y);
+    ctx.lineTo(xOffset + width, y);
+    ctx.stroke();
+    ctx.fillText(`${scaledWidth}px; on grid`, 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y + 0.5);
+    ctx.lineTo(xOffset + width, y + 0.5);
+    ctx.stroke();
+    ctx.fillText(`${scaledWidth}px; +0.5 y`, 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.lineWidth = 2.0;
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y);
+    ctx.lineTo(xOffset + width, y);
+    ctx.stroke();
+    ctx.fillText('2px; on grid', 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.beginPath();
+    ctx.moveTo(xOffset, y + 0.5);
+    ctx.lineTo(xOffset + width, y + 0.5);
+    ctx.stroke();
+    ctx.fillText('2px; +0.5 y', 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.drawImage(tenPxImage, xOffset, y-tenPxImage.height);
+    ctx.fillText('10x10 img unscaled', 2*xOffset + width, y);
+    y += yOffset;
+
+    ctx.drawImage(tenPxImage, xOffset, y-tenPxImage.height, tenPxImage.width / window.devicePixelRatio, tenPxImage.height / window.devicePixelRatio);
+    ctx.fillText('10x10 img scaled / dpr', 2*xOffset + width, y);
+    y += yOffset;
+  }
+}
+
+document.addEventListener("DOMContentLoaded", loaded);
+</script>
+</head>
+
+<body><h1>Device Pixel Test</h1>
+<p>Your device's <a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/devicePixelRatio"><code>window.devicePixelRatio</code></a>: <span id="dpr"></span>
+
+<h2>Unscaled Canvas</h2>
+<p><canvas id="unscaled" width="320" height="270" style="border: solid thin black;"></canvas></p>
+
+<h2>Scaled Canvas</h2>
+<p><canvas id="scaled" width="320" height="270" style="border: solid thin black;"></canvas></p>
+
+<h2>CSS Elements</h2>
+<p>100px wide; 20px tall; thin border</p>
+<div style="width: 100px; height: 20px; border: thin solid black;">&nbsp;</div>
+
+<p>100px wide; 20px tall; 1px border:</p>
+<div style="width: 100px; height: 20px; border: 1px solid black;">&nbsp;</div>
+
+<p>100px wide; 20px tall; 0.5px border:</p>
+<div style="width: 100px; height: 20px; border: 0.5px solid black;">&nbsp;</div>
+
+<p>scaled: 100px wide; 20px tall; 1px / dpr border = <span id="computed-dimensions"></span></p>
+<div id="scaled-border" style="width: 100px; height: 20px; border: 0.5px solid black;">&nbsp;</div>
+
+<p>10x10 px image</p>
+<img id="tenPx" width="10" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKAQMAAAC3/F3+AAAABlBMVEUAAAD///+l2Z/dAAAAFElEQVQI12PYf4ABjnYwMNw/gIwA2QwO0P2LzrEAAAAASUVORK5CYII=">
+
+<p>10x10 px image scaled = <span id="scaled-img-dimensions"></span></p>
+<img id="tenPxScaled" width="10" height="10" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKAQMAAAC3/F3+AAAABlBMVEUAAAD///+l2Z/dAAAAFElEQVQI12PYf4ABjnYwMNw/gIwA2QwO0P2LzrEAAAAASUVORK5CYII=">
+
+
+</body>
+</html>
