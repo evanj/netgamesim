@@ -14,7 +14,7 @@ import (
 const canvasID = "canvas"
 
 // we simulate at a fixed timestep 16 ms = 62.5 FPS which is really close to the 60 FPS
-// usual target for web games
+// target for web games
 // see https://gafferongames.com/post/fix_your_timestep/
 const simulationTimeStepMS = 16
 
@@ -204,7 +204,6 @@ func (g *game) simulateTimeStep() {
 	}
 
 	for i := 0; i < len(g.bullets); i++ {
-		before := g.bullets[i]
 		g.bullets[i].X += bulletMovePerTimeStep
 
 		shouldRemove := false
@@ -213,16 +212,13 @@ func (g *game) simulateTimeStep() {
 			shouldRemove = true
 		}
 
-		if intersect.PathBox(before, g.bullets[i], g.target, g.sprites.Target.Size) {
+		// in testing: the point/box intersection is basically as good as the the path/box
+		// intersection and much simpler. It misses on RARE occasions
+		if intersect.PointBox(g.bullets[i], g.target, g.sprites.Target.Size) {
 			// bullet hit the target! remove it and add smoke
 			shouldRemove = true
 			g.smoke = append(g.smoke, smokeCounter{g.bullets[i], 0})
-			log.Printf("hit! bullet = %s->%s ; target = %s",
-				before, g.bullets[i], g.target)
-
-			if !intersect.PointBox(g.bullets[i], g.target, g.sprites.Target.Size) {
-				log.Printf("!!!! would not hit with point")
-			}
+			log.Printf("hit! bullet = %s ; target = %s", g.bullets[i], g.target)
 		}
 
 		if shouldRemove {
