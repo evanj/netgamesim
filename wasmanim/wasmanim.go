@@ -282,7 +282,7 @@ func (s *simulation) jsRequestFrame(this js.Value, args []js.Value) interface{} 
 		Fire: s.client.sendFire,
 	}
 	s.client.sendFire = false
-	s.net.sendToServer(s.net.currentMS, input)
+	s.net.sendToServer(msSinceStart, input)
 
 	// draw the state of the universe
 	drawGame(s.clientScreen.gc, s.client.game)
