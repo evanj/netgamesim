@@ -13,19 +13,19 @@ const maxEdgeDimension = 500
 // we simulate at a fixed timestep 16 ms = 62.5 FPS which is really close to the 60 FPS
 // target for web games
 // see https://gafferongames.com/post/fix_your_timestep/
-const simulationTimeStepMS = 16
+const TimeStepMS = 16
 
 const tankMovePerSecond = 300
-const tankMovePerTimeStep = (tankMovePerSecond * simulationTimeStepMS) / 1000.0
+const tankMovePerTimeStep = (tankMovePerSecond * TimeStepMS) / 1000.0
 
 const targetMovePerSecond = 400
-const targetMovePerTimeStep = (targetMovePerSecond * simulationTimeStepMS) / 1000.0
+const targetMovePerTimeStep = (targetMovePerSecond * TimeStepMS) / 1000.0
 
 const bulletMovePerSecond = 900
-const bulletMovePerTimeStep = (bulletMovePerSecond * simulationTimeStepMS) / 1000.0
+const bulletMovePerTimeStep = (bulletMovePerSecond * TimeStepMS) / 1000.0
 
 const smokeDisplaySeconds = 1
-const smokeDisplayTimeSteps = int((smokeDisplaySeconds*1000.0)/simulationTimeStepMS + 0.5)
+const smokeDisplayTimeSteps = int((smokeDisplaySeconds*1000.0)/TimeStepMS + 0.5)
 
 const tankInitialX = 75
 const tankInitialY = 75
@@ -102,6 +102,20 @@ func New() *Game {
 	return g
 }
 
+func (g *Game) Clone() *Game {
+	bulletsClone := make([]intersect.Point, len(g.bullets))
+	for i, b := range g.bullets {
+		bulletsClone[i] = b
+	}
+	smokeClone := make([]smoke, len(g.smoke))
+	for i, s := range g.smoke {
+		smokeClone[i] = s
+	}
+	return &Game{
+		g.tank, g.tankDir, g.target, g.targetDir, bulletsClone, smokeClone, g.simTicks,
+	}
+}
+
 type Input struct {
 	TankDir Direction
 	Fire    bool
@@ -118,17 +132,16 @@ func (g *Game) ProcessInput(i Input) {
 
 // AdvanceSimulation advances the simulation to msSinceStart.
 func (g *Game) AdvanceSimulation(msSinceStart float64) {
-	ticksSinceStart := int(msSinceStart/simulationTimeStepMS + 0.5)
+	ticksSinceStart := int(msSinceStart/TimeStepMS)
 
 	// advance physics simulation until we are "caught up"
 	// see https://gafferongames.com/post/fix_your_timestep/
 	for g.simTicks < ticksSinceStart {
-		g.simulateTimeStep()
-		g.simTicks++
+		g.SimulateTimeStep()
 	}
 }
 
-func (g *Game) simulateTimeStep() {
+func (g *Game) SimulateTimeStep() {
 	offsetX := 0.0
 	offsetY := 0.0
 
@@ -205,4 +218,6 @@ func (g *Game) simulateTimeStep() {
 			i--
 		}
 	}
+
+	g.simTicks++
 }

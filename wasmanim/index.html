@@ -10,13 +10,43 @@ const go = new Go();
 WebAssembly.instantiateStreaming(fetch("wasmanim.wasm"), go.importObject).then((result) => {
   go.run(result.instance);
 });
+
+
+let latencySlider = null;
+let latencyText = null;
+
+function setLatencyEvent(event) {
+  v = Number(event.target.value)
+  if (Number.isNaN(v)) {
+    console.log("invalid number: " + event.target.value);
+    return;
+  }
+  latencyText.value = v;
+  latencySlider.value = v;
+  window.gameLatencyAdjusted(v);
+}
+
+function loaded() {
+  latencySlider = document.getElementById("latencySlider");
+  latencyText = document.getElementById("latencyText");
+  latencySlider.addEventListener("input", setLatencyEvent);
+  latencyText.addEventListener("input", setLatencyEvent);
+  latencyText.value = latencySlider.value;
+}
+
+document.addEventListener("DOMContentLoaded", loaded);
 </script>
 </head>
 
 <body><h1>Network Game Demo</h1>
-<p>Move the tank with arrow keys. Use space to shoot.</p>
+<p>Move the tank with arrow keys. Use space to shoot. The left hand side shows the client view. The right hand side shows the current state of the server's simulation. The latency slider adjusts the amount of latency between the two.</p>
 
-<p><canvas id="canvas" width="500" height="500" style="border: solid thin black;"></canvas></p>
+<p><label for="volume">Client->Server one way latency (ms):</label> <input type="range" id="latencySlider" min="0" max="1000" step="5" value="0"> <input id="latencyText" type="text" size="5" style="text-align: right;"></span> ms</p>
+
+<table>
+<tr><th>Client View</th><th>Server View</th></tr>
+<tr><td><canvas id="clientCanvas" width="500" height="500" style="border: solid thin black;"></canvas></td><td><canvas id="serverCanvas" width="500" height="500" style="border: solid thin black;"></canvas></td></tr>
+</table>
 
 <p><a href="devicepixeltest.html">device pixel test</a></p>
 </body>
