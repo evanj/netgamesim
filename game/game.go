@@ -132,7 +132,7 @@ func (g *Game) ProcessInput(i Input) {
 
 // AdvanceSimulation advances the simulation to msSinceStart.
 func (g *Game) AdvanceSimulation(msSinceStart float64) {
-	ticksSinceStart := int(msSinceStart/TimeStepMS)
+	ticksSinceStart := int(msSinceStart / TimeStepMS)
 
 	// advance physics simulation until we are "caught up"
 	// see https://gafferongames.com/post/fix_your_timestep/

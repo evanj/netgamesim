@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image"
 	"log"
+	"math"
 	"syscall/js"
 
 	"github.com/evanj/netgamesim/game"
@@ -25,25 +26,39 @@ const keyCodeDown = 40
 
 const logFPSSeconds = 15
 
+const tapMS = 100
+const touchMovePixels = 30
+
 type client struct {
-	keyDownCallback js.Func
-	keyUpCallback   js.Func
+	keyDownCallback    js.Func
+	keyUpCallback      js.Func
+	touchStartCallback js.Func
+	touchMoveCallback  js.Func
+	touchEndCallback   js.Func
 
 	game *game.Game
 
 	fireKeyDown bool
-	sendFire bool
+	sendFire    bool
 	tankDir     game.Direction
+
+	touchStartMS float64
+	touchX       float64
+	touchY       float64
 }
 
 func newClient(g *game.Game) *client {
 	c := &client{
-		js.Func{}, js.Func{},
+		js.Func{}, js.Func{}, js.Func{}, js.Func{}, js.Func{},
 		g,
 		false, false, game.DirNone,
+		0.0, 0.0, 0.0,
 	}
 	c.keyDownCallback = js.FuncOf(c.jsKeyDown)
 	c.keyUpCallback = js.FuncOf(c.jsKeyUp)
+	c.touchStartCallback = js.FuncOf(c.jsTouchStart)
+	c.touchMoveCallback = js.FuncOf(c.jsTouchMove)
+	c.touchEndCallback = js.FuncOf(c.jsTouchEnd)
 	return c
 }
 
@@ -121,6 +136,81 @@ func (c *client) jsKeyUp(this js.Value, args []js.Value) interface{} {
 	return nil
 }
 
+func (c *client) jsTouchStart(this js.Value, args []js.Value) interface{} {
+	event := args[0]
+	touches := event.Get("touches")
+	touches0 := touches.Get("0")
+	c.touchStartMS = event.Get("timeStamp").Float()
+	c.touchX = touches0.Get("pageX").Float()
+	c.touchY = touches0.Get("pageY").Float()
+	log.Printf("touch start x:%f y:%f", c.touchX, c.touchY)
+
+	event.Call("preventDefault")
+	return nil
+}
+
+func (c *client) jsTouchMove(this js.Value, args []js.Value) interface{} {
+	// log.Printf("touch move")
+	event := args[0]
+	touches := event.Get("touches")
+	touches0 := touches.Get("0")
+	x := touches0.Get("pageX").Float()
+	y := touches0.Get("pageY").Float()
+	xDiff := x - c.touchX
+	yDiff := y - c.touchY
+
+	xDiffAbs := math.Abs(xDiff)
+	yDiffAbs := math.Abs(yDiff)
+	logMove := false
+	if xDiffAbs > yDiffAbs && xDiffAbs > touchMovePixels {
+		if c.tankDir == game.DirNone {
+			logMove = true
+		}
+		if xDiff < 0 {
+			// joystick move left
+			c.tankDir = game.DirLeft
+		} else {
+			c.tankDir = game.DirRight
+		}
+	} else if yDiffAbs > touchMovePixels {
+		if c.tankDir == game.DirNone {
+			logMove = true
+		}
+		if yDiff < 0 {
+			// joystick move up
+			c.tankDir = game.DirUp
+		} else {
+			c.tankDir = game.DirDown
+		}
+	}
+	if logMove {
+		log.Printf("touch joystick move xDiff:%f yDiff:%f", xDiff, yDiff)
+	}
+
+	event.Call("preventDefault")
+	return nil
+}
+
+func (c *client) jsTouchEnd(this js.Value, args []js.Value) interface{} {
+	event := args[0]
+
+	if c.tankDir != game.DirNone {
+		// this was a move! cancel it
+		c.tankDir = game.DirNone
+	} else {
+		// check for tap
+		time := event.Get("timeStamp").Float()
+		if time-c.touchStartMS <= tapMS {
+			// this is a tap! fire
+			c.sendFire = true
+		}
+		log.Printf("tap time = %f", time-c.touchStartMS)
+	}
+
+	event.Call("preventDefault")
+	return nil
+}
+
 func drawGame(gc draw2d.GraphicContext, g *game.Game) {
 	sprites.DrawTank(gc, g.TankCenter())
 	sprites.DrawTarget(gc, g.TargetCenter())
@@ -134,12 +224,12 @@ func drawGame(gc draw2d.GraphicContext, g *game.Game) {
 
 type clientMessage struct {
 	sentTime float64
-	input game.Input
+	input    game.Input
 }
 
 type serverMessage struct {
 	sentTime float64
-	state *game.Game
+	state    *game.Game
 }
 
 type network struct {
@@ -203,26 +293,26 @@ func (s *server) executeTimeStep() *game.Game {
 
 type simulation struct {
 	simTimeStart float64
-	net *network
+	net          *network
 
-	client *client
+	client       *client
 	clientScreen *canvasScreen
 
-	server *server
+	server       *server
 	serverScreen *canvasScreen
 
-	requestFrame js.Func
+	requestFrame    js.Func
 	latencyAdjusted js.Func
 
-	lastFPSLogTime  float64
-	frames          int
+	lastFPSLogTime float64
+	frames         int
 }
 
 func newSimulation(clientScreen *canvasScreen, serverScreen *canvasScreen) *simulation {
 	sim := &simulation{
 		0.0, &network{},
 
-		newClient(game.New()),clientScreen,
+		newClient(game.New()), clientScreen,
 
 		newServer(), serverScreen,
 
@@ -279,7 +369,7 @@ func (s *simulation) jsRequestFrame(this js.Value, args []js.Value) interface{} 
 	// client sends a message to the server every frame
 	input := game.Input{
 		TankDir: s.client.tankDir,
-		Fire: s.client.sendFire,
+		Fire:    s.client.sendFire,
 	}
 	s.client.sendFire = false
 	s.net.sendToServer(msSinceStart, input)
@@ -330,6 +420,10 @@ func main() {
 
 	document.Call("addEventListener", "keydown", s.client.keyDownCallback)
 	document.Call("addEventListener", "keyup", s.client.keyUpCallback)
+	clientCanvasElement.Call("addEventListener", "touchstart", s.client.touchStartCallback)
+	clientCanvasElement.Call("addEventListener", "touchend", s.client.touchEndCallback)
+	clientCanvasElement.Call("addEventListener", "touchcancel", s.client.touchEndCallback)
+	clientCanvasElement.Call("addEventListener", "touchmove", s.client.touchMoveCallback)
 
 	js.Global().Call("requestAnimationFrame", s.requestFrame)
 	js.Global().Set("gameLatencyAdjusted", s.latencyAdjusted)
