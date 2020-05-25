@@ -7,5 +7,8 @@ all:
 	cp ../wasmanim/*.html $(BUILD_OUTPUT_DIR)
 	docker build . "--tag=us.gcr.io/evan-jones-hrd/gamesim:$(shell date +%Y%m%d)-$(shell git rev-parse --short HEAD)"
 
+push: all
+	docker push "us.gcr.io/evan-jones-hrd/gamesim:$(shell date +%Y%m%d)-$(shell git rev-parse --short HEAD)"
+
 clean:
 	$(RM) -r $(BUILD_OUTPUT_DIR)
