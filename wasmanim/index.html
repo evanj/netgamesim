@@ -7,10 +7,21 @@
 <script src="wasm_exec.js"></script>
 <script>
 const go = new Go();
-WebAssembly.instantiateStreaming(fetch("wasmanim.wasm"), go.importObject).then((result) => {
+const wasmFetcher = fetch("wasmanim.wasm");
+let wasmInstantiated = null;
+if (false && WebAssembly.instantiateStreaming) {
+  wasmInstantiated = WebAssembly.instantiateStreaming(wasmFetcher, go.importObject);
+} else {
+  // Fall back for Safari
+  wasmInstantiated = wasmFetcher.then(response =>
+    response.arrayBuffer()
+  ).then(bytes =>
+    WebAssembly.instantiate(bytes, go.importObject);
+  );
+}
+wasmInstantiated.then(result => {
   go.run(result.instance);
 });
-
 
 let latencySlider = null;
 let latencyText = null;
