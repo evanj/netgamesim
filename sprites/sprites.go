@@ -6,6 +6,7 @@ import (
 	"log"
 	"math"
 
+	"github.com/evanj/netgamesim/intersect"
 	"github.com/llgcode/draw2d"
 	"github.com/llgcode/draw2d/draw2dimg"
 	"github.com/llgcode/draw2d/draw2dkit"
@@ -16,45 +17,18 @@ var targetDarkRed = color.RGBA{0x9a, 0x1f, 0x40, 0xff}
 var targetLightRed = color.RGBA{0xd9, 0x45, 0x5f, 0xff}
 var smokeGrey = color.RGBA{0xaa, 0xaa, 0xaa, 0xaa}
 
-const tankSize = 20
+const TankSize = 20
 const tankLineWidth = 2.0
 
-// const TankCenterX = tankSize / 2
-// const TankCenterY = tankSize / 2
+const TargetSize = 30
+const targetInnerSize = TargetSize / 2.0
 
-const targetSize = 30
-const targetInnerSize = targetSize / 2.0
-
-const bulletSize = 12
-const smokeSize = 25
+const BulletSize = 12
+const SmokeSize = 25
 
 const pixelStrokeOffset = 0.5
 
-// Sprites are assumed to be squares Size x Size in dimension. It is actually
-// okay to draw the sprite past the Size boundary.
-type Sprite struct {
-	// Size is the bounding box width/height that contains the sprite
-	Size float64
-	Draw func(gc draw2d.GraphicContext, centerX float64, centerY float64)
-}
-
-type Sprites struct {
-	Tank   Sprite
-	Target Sprite
-	Bullet Sprite
-	Smoke  Sprite
-}
-
-func New() Sprites {
-	return Sprites{
-		Sprite{tankSize, drawTank},
-		Sprite{targetSize, drawTarget},
-		Sprite{bulletSize, drawBullet},
-		Sprite{smokeSize, drawSmoke},
-	}
-}
-
-func drawTank(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+func DrawTank(gc draw2d.GraphicContext, center intersect.Point) {
 	gc.SetStrokeColor(color.Black)
 	gc.SetFillColor(tankGreen)
 	gc.SetLineWidth(tankLineWidth)
@@ -65,51 +39,49 @@ func drawTank(gc draw2d.GraphicContext, centerX float64, centerY float64) {
 
 	// TODO: should this be for all odd line widths? E.g. 3.0, 5.0? what about 3.5 or 0.5?
 	if tankLineWidth <= 1.0 {
-		centerX += pixelStrokeOffset
-		centerY += pixelStrokeOffset
+		center.X += pixelStrokeOffset
+		center.Y += pixelStrokeOffset
 	}
 
 	// tank "body"
-	gc.MoveTo(centerX-tankSize/2, centerY-tankSize/2)
-	gc.LineTo(centerX+tankSize/2, centerY-tankSize/2)
-	gc.LineTo(centerX+tankSize/2, centerY+tankSize/2)
-	gc.LineTo(centerX-tankSize/2, centerY+tankSize/2)
+	gc.MoveTo(center.X-TankSize/2, center.Y-TankSize/2)
+	gc.LineTo(center.X+TankSize/2, center.Y-TankSize/2)
+	gc.LineTo(center.X+TankSize/2, center.Y+TankSize/2)
+	gc.LineTo(center.X-TankSize/2, center.Y+TankSize/2)
 	gc.Close()
 
 	// tank "gun"
-	gc.MoveTo(centerX, centerY)
-	gc.LineTo(centerX+tankSize, centerY)
+	gc.MoveTo(center.X, center.Y)
+	gc.LineTo(center.X+TankSize, center.Y)
 	gc.FillStroke()
 
 	gc.BeginPath()
 }
 
-func drawTarget(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+func DrawTarget(gc draw2d.GraphicContext, center intersect.Point) {
 	gc.SetFillColor(targetDarkRed)
-	draw2dkit.Circle(gc, centerX, centerY, targetSize/2)
+	draw2dkit.Circle(gc, center.X, center.Y, TargetSize/2)
 	gc.Fill()
 	gc.SetFillColor(targetLightRed)
-	draw2dkit.Circle(gc, centerX, centerY, targetInnerSize/2)
+	draw2dkit.Circle(gc, center.X, center.Y, targetInnerSize/2)
 	gc.Fill()
 }
 
-func drawBullet(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+func DrawBullet(gc draw2d.GraphicContext, center intersect.Point) {
 	gc.SetFillColor(color.Black)
 
-	// the bullet is a line bulletSize wide and bulletSize/3 thick
-	gc.SetLineWidth(bulletSize / 3)
+	// the bullet is a line BulletSize wide and BulletSize/3 thick
+	gc.SetLineWidth(BulletSize / 3)
 	gc.BeginPath()
-	gc.MoveTo(centerX-bulletSize/2, centerY)
-	gc.LineTo(centerX+bulletSize/2, centerY)
+	gc.MoveTo(center.X-BulletSize/2, center.Y)
+	gc.LineTo(center.X+BulletSize/2, center.Y)
 	gc.Stroke()
 	gc.BeginPath()
-	// draw2dkit.Circle(gc, centerX, centerY, bulletSize/2)
-	// gc.Fill()
 }
 
-func drawSmoke(gc draw2d.GraphicContext, centerX float64, centerY float64) {
+func DrawSmoke(gc draw2d.GraphicContext, center intersect.Point) {
 	gc.SetFillColor(smokeGrey)
-	draw2dkit.Circle(gc, centerX, centerY, smokeSize/2)
+	draw2dkit.Circle(gc, center.X, center.Y, SmokeSize/2)
 	gc.Fill()
 }
 

@@ -5,6 +5,7 @@ import (
 	"image/png"
 	"os"
 
+	"github.com/evanj/netgamesim/intersect"
 	"github.com/evanj/netgamesim/sprites"
 	"github.com/llgcode/draw2d/draw2dimg"
 )
@@ -20,11 +21,9 @@ func writePNG(path string, img image.Image) error {
 }
 
 func main() {
-	s := sprites.New()
-
-	img := image.NewRGBA(image.Rect(0, 0, int(s.Tank.Size*2), int(s.Tank.Size*2)))
+	img := image.NewRGBA(image.Rect(0, 0, int(sprites.TankSize*2), int(sprites.TankSize*2)))
 	gc := draw2dimg.NewGraphicContext(img)
-	s.Tank.Draw(gc, s.Tank.Size, s.Tank.Size)
+	sprites.DrawTank(gc, intersect.Point{X: sprites.TankSize, Y: sprites.TankSize})
 	err := writePNG("tank.png", img)
 	if err != nil {
 		panic(err)

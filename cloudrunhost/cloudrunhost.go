@@ -30,8 +30,8 @@ func main() {
 		log.Printf("warning: %s not specified; using default %s", portEnvVar, port)
 	}
 
-  addr := ":" + port
-  log.Printf("listen addr %s (http://localhost:%s/); data dir=%s", addr, port, dataDir)
+	addr := ":" + port
+	log.Printf("listen addr %s (http://localhost:%s/); data dir=%s", addr, port, dataDir)
 
 	handler := http.FileServer(http.Dir(dataDir))
 	if err := http.ListenAndServe(addr, handler); err != nil {

@@ -19,5 +19,12 @@ https://gafferongames.com/post/state_synchronization/
 
 https://www.gabrielgambetta.com/client-server-game-architecture.html
 
-
+https://fabiensanglard.net/quake3/network.php
 https://fabiensanglard.net/quakeSource/quakeSourceNetWork.php
+
+
+## TODO for networking
+
+* Client input goes to game server (key down, key up, etc)
+* Server streams world ticks to client
+* Client updates world at ticks
