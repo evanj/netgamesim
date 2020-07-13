@@ -10,7 +10,8 @@ import (
 // the game world is 500x500
 const maxEdgeDimension = 500
 
-// we simulate at a fixed timestep 16 ms = 62.5 FPS which is really close to the 60 FPS
+// TimeStepMS is the number of milliseconds of our fixed timestep simulation.
+// We simulate at a fixed timestep 16 ms = 62.5 FPS which is really close to the 60 FPS
 // target for web games
 // see https://gafferongames.com/post/fix_your_timestep/
 const TimeStepMS = 16
@@ -34,6 +35,7 @@ const targetX = 400
 const targetMaxY = 450
 const targetMinY = 50
 
+// Direction encodes the direction of movement.
 type Direction int
 
 const (

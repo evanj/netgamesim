@@ -163,7 +163,7 @@ func angles() *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, (2*radius+spacing)*divisions, 2*radius+2*spacing))
 	gc := draw2dimg.NewGraphicContext(img)
 
-	for div := 0; div < divisions; div += 1 {
+	for div := 0; div < divisions; div++ {
 		startX := spacing*div + (2 * radius * div) + radius
 		startY := spacing + radius
 
@@ -196,7 +196,7 @@ func angles2() *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, (2*radius + 2*spacing), 2*radius+2*spacing))
 	gc := draw2dimg.NewGraphicContext(img)
 
-	for div := 0; div < divisions; div += 1 {
+	for div := 0; div < divisions; div++ {
 		startX := spacing + radius
 		startY := spacing + radius
 

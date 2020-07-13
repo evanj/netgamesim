@@ -1,4 +1,4 @@
-FROM golang:1.14.3-buster AS builder
+FROM golang:1.14.4-buster AS builder
 COPY cloudrunhost.go /go/src/cloudrunhost/
 WORKDIR /go/src/cloudrunhost
 RUN go mod init github.com/evanj/netgamesim/cloudrunhost && go build --mod=readonly cloudrunhost.go && find /go/src -type f
