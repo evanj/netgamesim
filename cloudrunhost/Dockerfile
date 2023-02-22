@@ -1,9 +1,9 @@
-FROM golang:1.17.2-bullseye AS builder
+FROM golang:1.20.1-bullseye AS builder
 COPY cloudrunhost.go /go/src/cloudrunhost/
 WORKDIR /go/src/cloudrunhost
-RUN go mod init github.com/evanj/netgamesim/cloudrunhost && go build --mod=readonly cloudrunhost.go && find /go/src -type f
+RUN go mod init github.com/evanj/netgamesim/cloudrunhost && go build cloudrunhost.go
 
-FROM gcr.io/distroless/base-debian11:latest AS run
+FROM gcr.io/distroless/base-debian11:nonroot AS run
 COPY --from=builder /go/src/cloudrunhost/cloudrunhost /cloudrunhost
 COPY build/* /data/
 

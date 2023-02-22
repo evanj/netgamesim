@@ -1,3 +1,4 @@
+// Package sprites contains sprites for the game.
 package sprites
 
 import (
@@ -82,13 +83,6 @@ func DrawBullet(gc draw2d.GraphicContext, center intersect.Point) {
 func DrawSmoke(gc draw2d.GraphicContext, center intersect.Point) {
 	gc.SetFillColor(smokeGrey)
 	draw2dkit.Circle(gc, center.X, center.Y, SmokeSize/2)
-	gc.Fill()
-}
-
-// fillPixels fills the rectangle described by image.Rectangle with the given color
-func fillPixels(gc draw2d.GraphicContext, rect image.Rectangle, c color.Color) {
-	gc.SetFillColor(c)
-	pathRectangle(gc, rect, 0.0)
 	gc.Fill()
 }
 

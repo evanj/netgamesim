@@ -1,3 +1,4 @@
+// Package intersect implements intersections.
 package intersect
 
 import (

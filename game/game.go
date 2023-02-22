@@ -1,3 +1,4 @@
+// Package game contains the game logic.
 package game
 
 import (
@@ -5,6 +6,7 @@ import (
 
 	"github.com/evanj/netgamesim/intersect"
 	"github.com/evanj/netgamesim/sprites"
+	"golang.org/x/exp/slices"
 )
 
 // the game world is 500x500
@@ -105,14 +107,8 @@ func New() *Game {
 }
 
 func (g *Game) Clone() *Game {
-	bulletsClone := make([]intersect.Point, len(g.bullets))
-	for i, b := range g.bullets {
-		bulletsClone[i] = b
-	}
-	smokeClone := make([]smoke, len(g.smoke))
-	for i, s := range g.smoke {
-		smokeClone[i] = s
-	}
+	bulletsClone := slices.Clone(g.bullets)
+	smokeClone := slices.Clone(g.smoke)
 	return &Game{
 		g.tank, g.tankDir, g.target, g.targetDir, bulletsClone, smokeClone, g.simTicks,
 	}
